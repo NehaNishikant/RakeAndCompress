@@ -1,1 +1,6 @@
 # RakeAndCompress
+
+
+issues with c++: tried currying for partially resolved nodes (one leaf but not other) but explicit typing and other ew stuff that wasn't conducive to functions as values made things fucky
+-- we had to have an aarray of everything so we could do things in parallel. Like there was no point of the tree data structure if we have to literally represent the whole thing as an array as well.
+-- how to get all leaves at once to do in parallel - issues in c++ vs sml
