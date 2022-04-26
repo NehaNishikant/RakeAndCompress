@@ -1,17 +1,22 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
+#include <thread>
+#include <mutex>
 #include<unordered_set>
 #include <time.h>
+#include <string>
 
 using namespace std;
 
-struct node_data //all leaves are nums, else: lambda
-{
-    bool op; //true= +, false= *, undefined if not op
-    int num; //undefined if is op
 
+struct node_data //all leaves are nums, else: op
+{
+    //leaves (undefined if non-leaf):
+    int num;
+
+    //non leaves (undefined if leaf):
+    bool op; //true= +, false= *
     int alpha; //todo: initialize to 1
     int beta; //todo: initialize to 0
 };
@@ -23,9 +28,8 @@ struct node //Tree representation
     struct node* left;
     struct node* right;
     struct node* parent;
-
-    pthread_mutex_t *lock; 
-    bool coinflip;
+    mutex *lock; //for rake when 2 children try to rake up to same parent
+    bool coinflip; //for compress to decide which nodes to comprress
 };
 typedef struct node* Tree_Node;
 
@@ -33,8 +37,8 @@ typedef struct node* Tree_Node;
 class ExpressionTreeSolve {
     public:
         Tree_Node Tree;
-        std::unordered_set<Tree_Node> Nodes = {};
-        std::unordered_set<Tree_Node> Leaves = {};
+        std::unordered_set<Tree_Node> Nodes;
+        std::unordered_set<Tree_Node> Leaves;
 
         //INITIALIZE AND INITIALIZE METDATA HELPERS
         void init() {
@@ -79,11 +83,11 @@ class ExpressionTreeSolve {
             Nodes.erase((Tree_Node)leaf);
             
             Tree_Node parent = ((Tree_Node)leaf)->parent;
-            pthread_mutex_t* parent_lock = parent->lock;
+            mutex *parent_lock = parent->lock;
             int leaf_num = ((Tree_Node)leaf)->data->num;
             
             //lock parent_lock (another child might get there first)
-            pthread_mutex_lock(parent_lock); 
+            parent_lock->lock(); 
             
             if (parent->left != NULL & parent->right != NULL){ //first leaf (update lambda)
                 if (parent->data->op){
@@ -108,7 +112,7 @@ class ExpressionTreeSolve {
             
 
             //unlock parent_lock
-            pthread_mutex_unlock(parent_lock); 
+            parent_lock->unlock(); 
         }
 
         void rake(){ //to rake is all the leaves
@@ -126,7 +130,7 @@ class ExpressionTreeSolve {
                 pthread_t thread_id;
                 *threads = thread_id;
                 threads = threads + sizeof(pthread_t); //keep track of threads to join later
-                pthread_create(&thread_id, NULL, (void*(*)(void*)) &ExpressionTreeSolve::rake_thread, (void*)(&(*leaf)));
+                pthread_create(&thread_id, NULL, this->rake_thread, (void*)(&(*leaf)));
             }
             //join threads (waits)
             for (int i=0; i<Leaves_local.size(); i++){
@@ -135,7 +139,7 @@ class ExpressionTreeSolve {
         }
 
         //COMPRESS + COMPRESS HELPERS
-        void *assign_coinflips(void* tree_node) {
+        void assign_coinflips(Tree_Node tree_node) {
             ((Tree_Node)tree_node)->coinflip = (bool)(rand() % 2);
         }
 
@@ -180,20 +184,22 @@ class ExpressionTreeSolve {
 
         void compress(){
             //spawn threads to do all leaves in parallel
-            pthread_t* threads = (pthread_t*)calloc(Nodes.size(), sizeof(pthread_t));
+            thread* threads = (thread*)calloc(Nodes.size(), sizeof(thread));
 
             //iterate through nodes
+            int counter = 0;
             for (unordered_set<Tree_Node>::iterator tree_node = Nodes.begin(); tree_node != Nodes.end(); ++tree_node) {
                 //spawn thread
-                pthread_t thread_id;
-                *threads = thread_id;
-                threads = threads + sizeof(pthread_t);
-                pthread_create(&thread_id, NULL, (void*(*)(void*)) &ExpressionTreeSolve::assign_coinflips, (void*)(&(*tree_node)));
+                // thread thread_id;
+                threads[counter] = thread([this] { this->assign_coinflips(tree_node); });
+
+                counter += 1;
+                // pthread_create(&thread_id, NULL, (void*(*)(void*)) &ExpressionTreeSolve::assign_coinflips, (void*)(&(*tree_node)));
             }
 
             //join threads
             for (int i=0; i<Nodes.size(); i++){
-                pthread_join(threads[i], NULL);
+                threads[i].join();
             }
 
             //spawn threads to do all leaves in parallel
@@ -216,7 +222,7 @@ class ExpressionTreeSolve {
         }
 
         //SOLVE
-        int solve(Tree_Node root, int l){ 
+        int solve(){ 
             while (Nodes.size() > 1) {
                     rake();
                     compress();
@@ -224,56 +230,75 @@ class ExpressionTreeSolve {
             return Tree->data->num;
         }
 
+        Tree_Node make_node_from_char(string a) {
+            if (a == "NULL") {
+                return NULL;
+            }
+            if (a == "+") {
+                return make_op_node(true);
+            }
+            if (a == "*"){
+                return make_op_node(false);
+            }
+            return make_num_node(stoi(a));
+        }
 
         //INPUT TREE INITIALIZATION HELPERS
-        Tree_Node make_tree_from_list() {
-            Tree = ...;
+        Tree_Node make_tree_from_list(string *chars, int len) { //sadly i don't think this is possible/easy
+            //make a list to keep track of nodes indices
+            Tree_Node* list_of_nodes = (Tree_Node *)calloc(len, sizeof(Tree_Node));
+            for(int i = 0; i < len; i++) {
+                Tree_Node node = make_node_from_char(chars[i]);
+                Tree_Node parent = NULL;
+                if (i != 0) {
+                    parent = list_of_nodes[i/2];
+                    node->parent = parent;
+                }
+                if (i % 2) { // right child
+                    parent->right = node;
+                }
+                else { // left child
+                    parent->left = node;
+                }
+            }
+            Tree = list_of_nodes[0];
         }
         
-        Tree_Node make_node(struct node_data* data, Tree_Node left, Tree_Node right){
-            pthread_mutex_t lock;
+        Tree_Node make_node(struct node_data* data){
+            mutex lock;
             Tree_Node tree_node = (Tree_Node)malloc(sizeof(struct node));
             tree_node->data = data;
-            tree_node->left = left;
-            tree_node->right = right;
             tree_node->lock = &lock;
             return tree_node; //does not initialize parent
         }
 
-        Tree_Node make_op_node(bool plus, Tree_Node left, Tree_Node right){
+        Tree_Node make_op_node(bool plus){
             struct node_data* data = (struct node_data*)(malloc(sizeof(struct node_data)));
             data->op = plus;
             data->alpha = 1;
             data->beta = 0;
-            return make_node(data, left, right);
+            return make_node(data);
         }
 
-        Tree_Node make_num_node(int num, Tree_Node left, Tree_Node right){
+        Tree_Node make_num_node(int num){
             struct node_data* data = (struct node_data*)malloc(sizeof(struct node_data));
             data->num = num;
-            return make_node(data, left, right);
-        }
-
-        void set_parent_pointers(Tree_Node root){ //invariant: root is not NULL
-            if (root->left != NULL){
-                root->left->parent = root;
-                set_parent_pointers(root->left);
-            }
-            if (root->right != NULL){
-                root->right->parent = root;
-                set_parent_pointers(root->right);
-            }
+            return make_node(data);
         }
 
 };
 
-int main(int argc, char* argv){
-    
+int main(){
     //test cases
-    Solver = ExpressionTreeSolve();
+    ExpressionTreeSolve Solver = ExpressionTreeSolve();
     // 1
-    Solver.make_tree_from_list(....);
+    string tree[1] = {"1"};
+    Solver.make_tree_from_list(tree, 1);
     Solver.init();
-    Solver.solve() = 45;
-
+    assert(Solver.solve() == 1);
+    // 2
+    string tree[3] = {"+", "5", "6"};
+    Solver.make_tree_from_list(tree, 3);
+    Solver.init();
+    assert(Solver.solve() == 11);
 }
