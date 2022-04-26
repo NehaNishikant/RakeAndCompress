@@ -36,11 +36,17 @@ class ExpressionTreeSolve {
         std::unordered_set<Tree_Node> Nodes = {};
         std::unordered_set<Tree_Node> Leaves = {};
 
-        //INITIALIZE AND INITIALIZE METDATA HELPERS
-        void init() {
-            initialize_nodes(Tree);
-            initialize_leaves(Tree);
+        void init(Tree_Node T) {
+            Tree = T;
+            initialize_nodes(T);
+            initialize_leaves(T);
         };
+
+        int solve(Tree_Node root, int l){ 
+            while () 
+            rake();
+            compress();
+        }
 
         void initialize_nodes(Tree_Node T) {
             if (T == NULL) {
@@ -53,6 +59,7 @@ class ExpressionTreeSolve {
             }
         }
 
+        // initialize set of leaves
         void initialize_leaves(Tree_Node T) {
             if (T == NULL) {
                 return;
@@ -66,14 +73,12 @@ class ExpressionTreeSolve {
             }
         }
 
-        // FREE HELPER
         void free_node(Tree_Node node){
             free(node->data);
             free(node->lock);
             free(node);
         }
 
-        //RAKE AND RAKE HELPERS
         void* rake_thread(void* leaf){
             //get args
             Nodes.erase((Tree_Node)leaf);
@@ -134,7 +139,6 @@ class ExpressionTreeSolve {
             }
         }
 
-        //COMPRESS + COMPRESS HELPERS
         void *assign_coinflips(void* tree_node) {
             ((Tree_Node)tree_node)->coinflip = (bool)(rand() % 2);
         }
@@ -142,7 +146,7 @@ class ExpressionTreeSolve {
         bool should_compress(Tree_Node tree_node) {
             // im a head
             bool me_head = tree_node->coinflip;
-            // not root and parent tail
+            // parent tail
             Tree_Node parent = tree_node->parent;
             bool parent_tail = parent != NULL && !parent->coinflip;
             // left child tail (if it exists)
@@ -215,65 +219,22 @@ class ExpressionTreeSolve {
 
         }
 
-        //SOLVE
-        int solve(Tree_Node root, int l){ 
-            while (Nodes.size() > 1) {
-                    rake();
-                    compress();
-            }
-            return Tree->data->num;
-        }
-
-
-        //INPUT TREE INITIALIZATION HELPERS
-        Tree_Node make_tree_from_list() {
-            Tree = ...;
-        }
-        
-        Tree_Node make_node(struct node_data* data, Tree_Node left, Tree_Node right){
-            pthread_mutex_t lock;
-            Tree_Node tree_node = (Tree_Node)malloc(sizeof(struct node));
-            tree_node->data = data;
-            tree_node->left = left;
-            tree_node->right = right;
-            tree_node->lock = &lock;
-            return tree_node; //does not initialize parent
-        }
-
-        Tree_Node make_op_node(bool plus, Tree_Node left, Tree_Node right){
+        struct node_data make_op_node_data(bool plus){
             struct node_data* data = (struct node_data*)(malloc(sizeof(struct node_data)));
             data->op = plus;
             data->alpha = 1;
             data->beta = 0;
-            return make_node(data, left, right);
         }
-
-        Tree_Node make_num_node(int num, Tree_Node left, Tree_Node right){
-            struct node_data* data = (struct node_data*)malloc(sizeof(struct node_data));
+        struct node_data make_num_node_data(int num){
+            struct node_data* data = (struct node_data*)(malloc(sizeof(struct node_data)));
             data->num = num;
-            return make_node(data, left, right);
         }
-
-        void set_parent_pointers(Tree_Node root){ //invariant: root is not NULL
-            if (root->left != NULL){
-                root->left->parent = root;
-                set_parent_pointers(root->left);
-            }
-            if (root->right != NULL){
-                root->right->parent = root;
-                set_parent_pointers(root->right);
-            }
-        }
+        struct 
 
 };
+
 
 int main(int argc, char* argv){
     
     //test cases
-    Solver = ExpressionTreeSolve();
-    // 1
-    Solver.make_tree_from_list(....);
-    Solver.init();
-    Solver.solve() = 45;
-
 }
