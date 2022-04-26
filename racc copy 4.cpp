@@ -9,26 +9,36 @@ using namespace std;
 
 // TODO: check if can do parametrized classes
 
-struct node_data //all leaves are nums, else: lambda
+
+
+typedef int (*inner_lambda) (int);
+typedef inner_lambda(*outer_lambda)(int);
+
+union lambda
 {
-    bool is_op; //true=op, false=num
+    inner_lambda inner;
+    outer_lambda outer;
+};
 
+struct lambda_data
+{
+    union lambda* fn;
+    bool outer_flag;
+};
 
-    bool op; //true= +, false= *, undefined if not is_op
-    int num; //undefined if is_op
-
-    int alpha;
-    int beta;
+union node_data //all leaves are nums, else: lambda
+{
+    int num;
+    struct lambda_data* fn_data;
 };
 
 struct node //Tree representation 
 {
-    struct node_data* data;
+    union node_data* data;
     
     struct node* left;
     struct node* right;
     struct node* parent;
-
     pthread_mutex_t *lock; 
     bool coinflip;
 };
@@ -135,9 +145,21 @@ class ExpressionTreeSolve {
             //lock parent_lock (another child might get there first)
             pthread_mutex_lock(parent_lock); 
             
-            //DO STUFF
-            if (parent->is_op)
+            if (parent->data->fn_data->outer_flag){ //outer case
 
+                outer_lambda outer = parent->data->fn_data->fn->outer;
+                inner_lambda inner = outer(((Tree_Node)leaf)->data->num); //all leaves are nums
+
+                parent->data->fn_data->outer_flag = false;
+                parent->data->fn_data->fn->inner = inner;
+            }
+            else{ //inner case
+
+                inner_lambda inner = parent->data->fn_data->fn->inner;
+                parent->data->num = inner(((Tree_Node)leaf)->data->num); //all leaves are nums
+
+                Leaves.insert(parent); 
+            }
             
             //unlock parent_lock
             pthread_mutex_unlock(parent_lock); 
