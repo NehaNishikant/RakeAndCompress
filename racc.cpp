@@ -45,9 +45,9 @@ class ExpressionTreeSolve {
         //INITIALIZE AND INITIALIZE METDATA HELPERS
         void init() {
             initialize_nodes(Tree);
-            printf("initialized nodes");
+            // cout << "initialized nodes\n";
             initialize_leaves(Tree);
-            printf("initialized leaves");
+            // cout << "initialized leaves\n";
         };
 
         void initialize_nodes(Tree_Node T) {
@@ -242,7 +242,6 @@ class ExpressionTreeSolve {
         }
 
         Tree_Node make_node_from_char(string a) {
-            printf("ok hi");
             if (a == "NULL") {
                 return NULL;
             }
@@ -260,20 +259,20 @@ class ExpressionTreeSolve {
             //make a list to keep track of nodes indices
             Tree_Node* list_of_nodes = (Tree_Node *)calloc(len, sizeof(Tree_Node));
             for(int i = 0; i < chars.size(); i++){
-                cout << "here";
                 Tree_Node node = make_node_from_char(chars[i]);
-                printf("made node from char");
-                Tree_Node parent = NULL;
+
                 if (i != 0) {
-                    parent = list_of_nodes[i/2];
+                    Tree_Node parent = list_of_nodes[i/2];
                     node->parent = parent;
+                
+                    if (i % 2) { // right child
+                        parent->right = node;
+                    }
+                    else { // left child
+                        parent->left = node;
+                    }
                 }
-                if (i % 2) { // right child
-                    parent->right = node;
-                }
-                else { // left child
-                    parent->left = node;
-                }
+                list_of_nodes[i] = node;
             }
             Tree = list_of_nodes[0];
         }
@@ -296,9 +295,7 @@ class ExpressionTreeSolve {
 
         Tree_Node make_num_node(int num){
             struct node_data* data = (struct node_data*)malloc(sizeof(struct node_data));
-            printf("hi..");
             data->num = num;
-            printf("about to make rest ofnode");
             return make_node(data);
         }
 
@@ -306,23 +303,23 @@ class ExpressionTreeSolve {
 
 int main(int argc, char** argv){
     //test cases
-    cout << "hi";
     ExpressionTreeSolve Solver = ExpressionTreeSolve();
-    cout <<"no";
     // 1
     vector<string> tree1;
-    string a = "1";
-    cout << "sup";
-    tree1.push_back(a);
-    cout << "bithc";
+    tree1.push_back("1");
     Solver.make_tree_from_list(tree1, 1);
 
-    // Solver.init();
-    // assert(Solver.solve() == 1);
-    // printf("\nyay\n");
-    // // 2
-    // // string tree2[3] = {"+", "5", "6"};
-    // // Solver.make_tree_from_list(tree2, 3);
-    // // Solver.init();
-    // // assert(Solver.solve() == 11);
+    Solver.init();
+    assert(Solver.solve() == 1);
+    cout << "Test case 1 passed\n";
+
+    //2
+    vector<string> tree2;
+    tree2.push_back("+");
+    tree2.push_back("5");
+    tree2.push_back("6");
+    Solver.make_tree_from_list(tree2, 3);
+    Solver.init();
+    assert(Solver.solve() == 11);
+    cout << "Test case 2 passed\n";
 }
