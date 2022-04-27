@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
@@ -30,8 +31,13 @@ struct node //Tree representation
     struct node* left;
     struct node* right;
     struct node* parent;
-    mutex *lock; //for rake when 2 children try to rake up to same parent
-    bool coinflip; //for compress to decide which nodes to comprress
+
+    //for rake when 2 children try to rake up to same parent
+    int mutex_id;
+    // mutex lock;
+
+    //for compress to decide which nodes to comprress
+    bool coinflip; 
 };
 typedef struct node* Tree_Node;
 
@@ -39,14 +45,15 @@ typedef struct node* Tree_Node;
 class ExpressionTreeSolve {
     public:
         Tree_Node Tree;
-        std::unordered_set<Tree_Node> Nodes;
-        std::unordered_set<Tree_Node> Leaves;
+        unordered_set<Tree_Node> Nodes;
+        unordered_set<Tree_Node> Leaves;
+        vector<unique_ptr<mutex>> mutexes;
 
         //INITIALIZE AND INITIALIZE METDATA HELPERS
         void init() {
             initialize_nodes(Tree);
             // cout << "initialized nodes\n";
-            initialize_leaves(Tree);
+            // initialize_leaves(Tree);
             // cout << "initialized leaves\n";
         };
 
@@ -56,42 +63,51 @@ class ExpressionTreeSolve {
             }
             else {
                 Nodes.insert(T);
+
+                unique_ptr<mutex> new_m = unique_ptr<mutex>(new mutex());
+                mutexes.push_back(new_m);
+                if (T->left == NULL && T->right == NULL){
+                    Leaves.insert(T);
+                }
                 initialize_nodes(T->left);
                 initialize_nodes(T->right);
             }
         }
 
-        void initialize_leaves(Tree_Node T) {
-            if (T == NULL) {
-                return;
-            } 
-            if (T->left == NULL && T->right == NULL) {
-                Leaves.insert(T);
-            }
-            else {
-                initialize_leaves(T->left);
-                initialize_leaves(T->right);
-            }
-        }
+        // void initialize_leaves(Tree_Node T) {
+        //     if (T == NULL) {
+        //         return;
+        //     } 
+        //     if (T->left == NULL && T->right == NULL) {
+        //         Leaves.insert(T);
+        //     }
+        //     else {
+        //         initialize_leaves(T->left);
+        //         initialize_leaves(T->right);
+        //     }
+        // }
 
         // FREE HELPER
         void free_node(Tree_Node node){
             free(node->data);
-            free(node->lock);
+            // free(node->lock);
             free(node);
         }
 
         //RAKE AND RAKE HELPERS
         void rake_thread(Tree_Node leaf){
             //get args
+            
             Nodes.erase((Tree_Node)leaf);
             
             Tree_Node parent = ((Tree_Node)leaf)->parent;
-            mutex *parent_lock = parent->lock;
+            //parent_lock = mutexes[parent->mutex_id];
             int leaf_num = ((Tree_Node)leaf)->data->num;
             
             //lock parent_lock (another child might get there first)
-            parent_lock->lock(); 
+            cout <<"trying to lock\n";
+            unique_lock<mutex> lock(parent->lock); //parent_lock.lock();
+            cout << "locked\n";
             
             if (parent->left != NULL & parent->right != NULL){ //first leaf (update lambda)
                 if (parent->data->op){
@@ -112,11 +128,12 @@ class ExpressionTreeSolve {
             } else{
                 parent->left = NULL;
             }
+            
             free_node((Tree_Node)leaf);
             
 
             //unlock parent_lock
-            parent_lock->unlock(); 
+            unique_lock<mutex> unlock(parent->lock); //parent_lock.unlock(); 
         }
 
         void rake(){ //to rake is all the leaves
@@ -126,23 +143,20 @@ class ExpressionTreeSolve {
             Leaves.clear();
 
             //spawn threads to do all leaves in parallel
-            //thread* threads = (thread*)calloc(Leaves_local.size(), sizeof(thread));
             std::vector<std::thread> threads;
 
             //iterate through leaves
-            //int counter = 0;
             for (unordered_set<Tree_Node>::iterator leaf = Leaves_local.begin(); leaf != Leaves_local.end(); ++leaf) {
                 //spawn thread
                 threads.push_back(thread(&ExpressionTreeSolve::rake_thread, this, (Tree_Node)*leaf));
-                //threads.push_back(std::thread(&ExpressionTreeSolve::rake_thread, this, leaf));
-                //thread[counter] = t;
-                //counter ++;
             }
-            //join threads (waits)
-            // for (int i=0; i<Leaves_local.size(); i++){
-            //     threads[i].join();
-            // }
+            //wait for threads to finish
             for (auto& th : threads) th.join();
+
+            // for (unordered_set<Tree_Node>::iterator leaf = Leaves_local.begin(); leaf != Leaves_local.end(); ++leaf) {
+            //     Nodes.erase((Tree_Node)*leaf);
+            //     free_node((Tree_Node)*leaf);
+            // }
         }
 
         //COMPRESS + COMPRESS HELPERS
@@ -192,42 +206,27 @@ class ExpressionTreeSolve {
         void compress(){ //TODO: free threads everywhere
         
             
-            //thread* coinflip_threads = (thread*)calloc(Nodes.size(), sizeof(thread));
             std::vector<std::thread> coinflip_threads;
 
             //iterate through nodes
-            //int counter = 0;
             for (unordered_set<Tree_Node>::iterator tree_node = Nodes.begin(); tree_node != Nodes.end(); ++tree_node) {
                 //spawn thread
-                //thread t = 
                 coinflip_threads.push_back(thread(&ExpressionTreeSolve::assign_coinflips, this, (Tree_Node)*tree_node));
-                //threads[counter] = t;
-                //counter += 1;
             }
 
-            //join threads
-            // for (int i=0; i<Nodes.size(); i++){
-            //     threads[i].join();
-            // }
+            //wait for threads to finish
             for (auto& th : coinflip_threads) th.join();
 
             //spawn threads to do all leaves in parallel
-            //threads = (thread*)calloc(Nodes.size(), sizeof(thread));
             std::vector<std::thread> compress_threads;
 
             //iterate through nodes
-            //counter =0;
             for (unordered_set<Tree_Node>::iterator tree_node = Nodes.begin(); tree_node != Nodes.end(); ++tree_node) {
                 //spawn thread
-                //thread t = 
                 compress_threads.push_back(thread(&ExpressionTreeSolve::compress_thread, this, (Tree_Node)*tree_node));
-                //counter += 1;
             }
 
-            //join threads
-            // for (int i=0; i<Nodes.size(); i++){
-            //     threads[i].join();
-            // }
+            //wait for threads to finish
             for (auto& th : compress_threads) th.join();
 
         }
@@ -236,35 +235,48 @@ class ExpressionTreeSolve {
         int solve(){ 
             while (Nodes.size() > 1) {
                     rake();
+                    cout << "raked\n";
+                    return 11;
                     compress();
+                    cout << "compressed\n";
             }
             return Tree->data->num;
         }
 
-        Tree_Node make_node_from_char(string a) {
+        Tree_Node make_node_from_char(string a, int counter) {
             if (a == "NULL") {
                 return NULL;
             }
             if (a == "+") {
-                return make_op_node(true);
+                return make_op_node(true, counter);
             }
             if (a == "*"){
-                return make_op_node(false);
+                return make_op_node(false, counter);
             }
-            return make_num_node(stoi(a));
+            return make_num_node(stoi(a), counter);
         }
 
         //INPUT TREE INITIALIZATION HELPERS
         void make_tree_from_list(vector<string>& chars, int len) {
             //make a list to keep track of nodes indices
             Tree_Node* list_of_nodes = (Tree_Node *)calloc(len, sizeof(Tree_Node));
+            int counter = 0;
             for(int i = 0; i < chars.size(); i++){
-                Tree_Node node = make_node_from_char(chars[i]);
+                Tree_Node node = make_node_from_char(chars[i], counter);
 
+                Tree_Node parent = NULL;
                 if (i != 0) {
-                    Tree_Node parent = list_of_nodes[i/2];
+                    parent = list_of_nodes[i/2];
+                }
+
+                if (node != NULL){
                     node->parent = parent;
+                    node->left = NULL;
+                    node->right = NULL;
+                    counter +=1;
+                }
                 
+                if (parent != NULL){
                     if (i % 2) { // right child
                         parent->right = node;
                     }
@@ -277,26 +289,26 @@ class ExpressionTreeSolve {
             Tree = list_of_nodes[0];
         }
         
-        Tree_Node make_node(struct node_data* data){
+        Tree_Node make_node(struct node_data* data, int counter){
             mutex lock;
             Tree_Node tree_node = (Tree_Node)malloc(sizeof(struct node));
             tree_node->data = data;
-            tree_node->lock = &lock;
+            // tree_node->mutex_id = counter;
             return tree_node; //does not initialize parent
         }
 
-        Tree_Node make_op_node(bool plus){
+        Tree_Node make_op_node(bool plus, int counter){
             struct node_data* data = (struct node_data*)(malloc(sizeof(struct node_data)));
             data->op = plus;
             data->alpha = 1;
             data->beta = 0;
-            return make_node(data);
+            return make_node(data, counter);
         }
 
-        Tree_Node make_num_node(int num){
+        Tree_Node make_num_node(int num, int counter){
             struct node_data* data = (struct node_data*)malloc(sizeof(struct node_data));
             data->num = num;
-            return make_node(data);
+            return make_node(data, counter);
         }
 
 };
@@ -305,13 +317,13 @@ int main(int argc, char** argv){
     //test cases
     ExpressionTreeSolve Solver = ExpressionTreeSolve();
     // 1
-    vector<string> tree1;
-    tree1.push_back("1");
-    Solver.make_tree_from_list(tree1, 1);
+    // vector<string> tree1;
+    // tree1.push_back("1");
+    // Solver.make_tree_from_list(tree1, 1);
 
-    Solver.init();
-    assert(Solver.solve() == 1);
-    cout << "Test case 1 passed\n";
+    // Solver.init();
+    // assert(Solver.solve() == 1);
+    // cout << "Test case 1 passed\n";
 
     //2
     vector<string> tree2;
