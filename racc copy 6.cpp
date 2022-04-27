@@ -7,7 +7,6 @@
 #include <time.h>
 #include <string>
 #include <vector>
-#include <iostream>
 
 using namespace std;
 
@@ -45,9 +44,7 @@ class ExpressionTreeSolve {
         //INITIALIZE AND INITIALIZE METDATA HELPERS
         void init() {
             initialize_nodes(Tree);
-            printf("initialized nodes");
             initialize_leaves(Tree);
-            printf("initialized leaves");
         };
 
         void initialize_nodes(Tree_Node T) {
@@ -133,8 +130,7 @@ class ExpressionTreeSolve {
             //int counter = 0;
             for (unordered_set<Tree_Node>::iterator leaf = Leaves_local.begin(); leaf != Leaves_local.end(); ++leaf) {
                 //spawn thread
-                threads.push_back(thread(&ExpressionTreeSolve::rake_thread, this, (Tree_Node)*leaf));
-                //threads.push_back(std::thread(&ExpressionTreeSolve::rake_thread, this, leaf));
+                threads.push_back(thread(&ExpressionTreeSolve::rake_thread, this, leaf));
                 //thread[counter] = t;
                 //counter ++;
             }
@@ -200,7 +196,7 @@ class ExpressionTreeSolve {
             for (unordered_set<Tree_Node>::iterator tree_node = Nodes.begin(); tree_node != Nodes.end(); ++tree_node) {
                 //spawn thread
                 //thread t = 
-                coinflip_threads.push_back(thread(&ExpressionTreeSolve::assign_coinflips, this, (Tree_Node)*tree_node));
+                coinflip_threads.push_back(thread(&ExpressionTreeSolve::assign_coinflips, this, tree_node));
                 //threads[counter] = t;
                 //counter += 1;
             }
@@ -220,7 +216,7 @@ class ExpressionTreeSolve {
             for (unordered_set<Tree_Node>::iterator tree_node = Nodes.begin(); tree_node != Nodes.end(); ++tree_node) {
                 //spawn thread
                 //thread t = 
-                compress_threads.push_back(thread(&ExpressionTreeSolve::compress_thread, this, (Tree_Node)*tree_node));
+                compress_threads.push_back(thread(&ExpressionTreeSolve::compress_thread, this, tree_node));
                 //counter += 1;
             }
 
@@ -242,7 +238,6 @@ class ExpressionTreeSolve {
         }
 
         Tree_Node make_node_from_char(string a) {
-            printf("ok hi");
             if (a == "NULL") {
                 return NULL;
             }
@@ -256,13 +251,11 @@ class ExpressionTreeSolve {
         }
 
         //INPUT TREE INITIALIZATION HELPERS
-        void make_tree_from_list(vector<string>& chars, int len) {
+        void make_tree_from_list(string *chars, int len) { //sadly i don't think this is possible/easy
             //make a list to keep track of nodes indices
             Tree_Node* list_of_nodes = (Tree_Node *)calloc(len, sizeof(Tree_Node));
-            for(int i = 0; i < chars.size(); i++){
-                cout << "here";
+            for(int i = 0; i < len; i++) {
                 Tree_Node node = make_node_from_char(chars[i]);
-                printf("made node from char");
                 Tree_Node parent = NULL;
                 if (i != 0) {
                     parent = list_of_nodes[i/2];
@@ -296,33 +289,23 @@ class ExpressionTreeSolve {
 
         Tree_Node make_num_node(int num){
             struct node_data* data = (struct node_data*)malloc(sizeof(struct node_data));
-            printf("hi..");
             data->num = num;
-            printf("about to make rest ofnode");
             return make_node(data);
         }
 
 };
 
-int main(int argc, char** argv){
+int main(){
     //test cases
-    cout << "hi";
     ExpressionTreeSolve Solver = ExpressionTreeSolve();
-    cout <<"no";
     // 1
-    vector<string> tree1;
-    string a = "1";
-    cout << "sup";
-    tree1.push_back(a);
-    cout << "bithc";
+    string tree1[1] = {"1"};
     Solver.make_tree_from_list(tree1, 1);
-
-    // Solver.init();
-    // assert(Solver.solve() == 1);
-    // printf("\nyay\n");
-    // // 2
-    // // string tree2[3] = {"+", "5", "6"};
-    // // Solver.make_tree_from_list(tree2, 3);
-    // // Solver.init();
-    // // assert(Solver.solve() == 11);
+    Solver.init();
+    assert(Solver.solve() == 1);
+    // 2
+    string tree2[3] = {"+", "5", "6"};
+    Solver.make_tree_from_list(tree2, 3);
+    Solver.init();
+    assert(Solver.solve() == 11);
 }
