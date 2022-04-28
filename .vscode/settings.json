@@ -69,6 +69,7 @@
         "iterator": "cpp",
         "utility": "cpp",
         "thread": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "future": "cpp"
     }
 }
