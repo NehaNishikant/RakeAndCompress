@@ -183,7 +183,7 @@ class ExpressionTreeSolve {
 
         void rake(){ //to rake is all the leaves
 
-            // cout  << "raking\n";
+            //cout  << "raking\n";
 
             //spawn threads to do all leaves in parallel
             std::vector<std::thread> threads;
@@ -239,7 +239,7 @@ class ExpressionTreeSolve {
                 return;
             }
 
-            // cout << "compressing\n";
+            //cout << "compressing\n";
             
             // combine alpha beta of node with parent node's alpha beta
             Tree_Node node = (Tree_Node)tree_node;
@@ -259,12 +259,12 @@ class ExpressionTreeSolve {
 
             
             
-            // remove and free node. TODO: garbage collection
+            // remove and free node. 
             Nodes.erase((Tree_Node)tree_node);
             free_node((Tree_Node)tree_node);
         }
 
-        void compress(){ //TODO: free threads everywhere
+        void compress(){ 
             
             std::vector<std::thread> coinflip_threads;
 
@@ -295,18 +295,17 @@ class ExpressionTreeSolve {
         int solve(){ 
             while (Nodes.size() > 1) {
                 rake();
-                // print_tree(Tree);
-                assert(validate_tree(Tree));
+                //print_tree(Tree);
+                //assert(validate_tree(Tree));
                 compress();
-                // print_tree(Tree);
-                assert(validate_tree(Tree));
+                //print_tree(Tree);
+                //assert(validate_tree(Tree));
             }
 
             Nodes.clear();
             Leaves.clear();
             int x = Tree->data->num;
             //cout << x;
-            //TODO: free tree
             return x;
         }
 
@@ -415,17 +414,19 @@ int main(int argc, char** argv){
 
     //4 (tests single rake + long chain)
     vector<string> tree4;
-    int num_levels = 7;
+    int num_levels = 10; //2 or more
     int next_po2 = 1;
     int i =0;
     int counter = 1;
-    while (i < pow(2, num_levels-1)+1){
+
+    int num_nodes = pow(2, num_levels-1)+1;
+    while (i < num_nodes){
         if (i+1==1){
             tree4.push_back("+");
             i +=1;
             next_po2 *=2;
         } else{
-            if (i+1==pow(2, num_levels-1)){
+            if (i+1==num_nodes - 1){
                 tree4.push_back(to_string(counter));
                 tree4.push_back(to_string(counter+1));
                 i+=2;
@@ -444,7 +445,8 @@ int main(int argc, char** argv){
             }
         }
     }
-    Solver.make_tree_from_list(tree4, pow(2, num_levels-1)+1);
+    // cout << tree4.size();
+    Solver.make_tree_from_list(tree4, num_nodes);
     Solver.init();
     assert(Solver.solve() == ((1+num_levels)*(num_levels))/2);
     cout << "Test case 4 passed\n";
@@ -478,4 +480,21 @@ int main(int argc, char** argv){
     Solver.init();
     assert(Solver.solve() == 71);
     cout << "Test case 5 passed\n";
+
+    //6 (tests full tree)
+    vector<string> tree6;
+    num_levels = 2;
+    num_nodes = pow(2, num_levels)-1;
+    int num_op_nodes = pow(2, num_levels-1)-1;
+    for (int i=0; i<num_nodes; i++){
+        if (i < num_op_nodes){
+            tree6.push_back("+");
+        } else {
+            tree6.push_back("1");
+        }
+    }
+    Solver.make_tree_from_list(tree6, num_nodes);
+    Solver.init();
+    assert(Solver.solve() == (num_nodes - num_op_nodes));
+    //cout << "Test case 6 passed\n";
 }
